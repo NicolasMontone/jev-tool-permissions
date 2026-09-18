@@ -113,7 +113,7 @@ describe('createPermissionGate — one round trip', () => {
 
 describe('createPermissionGate — threshold asymmetry', () => {
   it('requires a very high safety confidence to auto-approve, even when everything looks mostly fine', async () => {
-    // reversible=0.9, inScope=0.9, risk=0 (minimal) => safety = 1 * 0.9 * 0.9 = 0.81 < default 0.95
+    // reversible=0.9, inScope=0.9, risk=0 (minimal) => safety = min(1, 0.9, 0.9) = 0.9 < default 0.95
     mockEvaluate.mockResolvedValueOnce({
       answers: { reversible: boolAnswer(0.9), inScope: boolAnswer(0.9), risk: scoreAnswer(0) },
       usage: usage(),
@@ -162,7 +162,7 @@ describe('createPermissionGate — threshold asymmetry', () => {
       usage: usage(),
     } as any);
 
-    // safety = 1 * 0.8 * 0.8 = 0.64, which clears a relaxed 0.5 bar
+    // safety = min(1, 0.8, 0.8) = 0.8, which clears a relaxed 0.5 bar
     const gate = createPermissionGate({ policy: { thresholds: { autoApprove: 0.5, block: 0.9 } } });
     const result = await gate.check({ tool: { name: 'listFiles' }, task: 'x' });
 

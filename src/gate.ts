@@ -147,7 +147,13 @@ export function createPermissionGate(options: { policy?: PermissionPolicy } = {}
       const riskLevels = RISK_LEVELS.length;
       const risk = result.answers.risk.score / (riskLevels - 1);
 
-      const safety = (1 - risk) * reversible * inScope;
+      // Weakest-link, not a product. A product of three probabilities is
+      // systematically low — three independently excellent dimensions at 0.98
+      // each multiply to 0.94, below a 0.95 bar — so a product makes
+      // auto-approve effectively unreachable and pushes every call to a human,
+      // which defeats the gate. `min` means the threshold reads literally:
+      // "every dimension must be at least this confident".
+      const safety = Math.min(1 - risk, reversible, inScope);
 
       let decision: CheckResult['decision'];
       if (risk >= thresholds.block) {

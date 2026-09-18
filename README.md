@@ -87,7 +87,7 @@ import { createPermissionGate } from 'jev-tool-permissions';
 
 const gate = createPermissionGate({
   policy: {
-    deny: ['*.delete*', /^dangerous/i],
+    deny: ['*delete*', '*.destroy*', /^dangerous/i],
     allow: ['read*', 'list*'],
     thresholds: { autoApprove: 0.95, block: 0.6 }, // see "Threshold asymmetry" below
     onError: 'ask-human',   // 'block' is also legal; 'auto-approve' is not a valid value, on purpose
@@ -193,7 +193,7 @@ import {
   extractTaskFromMessages,
 } from 'jev-tool-permissions';
 
-const gate = createPermissionGate({ policy: { deny: ['*.delete*'] } });
+const gate = createPermissionGate({ policy: { deny: ['*delete*'] } });
 
 const result = streamText({
   model: 'openai/gpt-5',
@@ -239,6 +239,28 @@ gate's three decisions. This is a deliberate choice beyond what was asked for tw
 `prepareStep`/`filterActiveTools`: `prepareStep`/`filterActiveTools` govern *which tools the model can see*
 (pruning), while `toolApproval` governs *whether a specific call the model already made gets to run*
 (the gate) — they're different questions, wired to different AI SDK hooks.
+
+### How `safety` is computed
+
+```
+risk     = answers.risk.score / (levels - 1)     // normalized to [0,1]
+safety   = min(1 - risk, reversible, inScope)    // weakest link
+```
+
+`safety` is the **minimum** of the three dimensions, not their product. A product of
+three probabilities is systematically low — three independently excellent dimensions at
+`0.98` multiply to `0.94`, which sits below a `0.95` bar — so a product makes
+`auto-approve` effectively unreachable and routes every call to a human, defeating the
+gate. With `min`, the threshold reads literally: *every* dimension must be at least that
+confident. `block` is checked first and independently, against `risk` alone, so a
+high-risk call is blocked no matter how good the other two dimensions look.
+
+### A note on glob patterns
+
+`*` matches any run of characters and `?` any single character; everything else is
+literal. `*.delete*` requires a literal dot, so it matches `db.deleteUser` but **not**
+`deleteRecord`. When in doubt use `*delete*`, and assert your policy in a test — a deny
+rule that silently matches nothing looks identical to one that works.
 
 ## Design notes / deviations from the suggested API
 

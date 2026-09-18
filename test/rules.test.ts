@@ -63,3 +63,22 @@ describe('evaluateDeterministic', () => {
     expect(evaluateDeterministic('deleteFile', undefined, ['*delete*'], ['*delete*'])).toBe('deny');
   });
 });
+
+describe('documented policies actually match their documented tool names', () => {
+  // Regression: the README once shipped `deny: ['*.delete*']` alongside an
+  // example call to a tool named `deleteRecord`. The glob requires a literal
+  // dot, so it silently matched nothing and the "protected" example was not
+  // protected. Anyone copying the README got a gate that let deletes through.
+  it("denies deleteRecord with the README's deny pattern", () => {
+    expect(matchesRule('*delete*', 'deleteRecord')).toBe(true);
+  });
+
+  it('still denies dotted/namespaced tool names', () => {
+    expect(matchesRule('*delete*', 'db.deleteUser')).toBe(true);
+  });
+
+  it('documents the trap: a leading *. requires a literal dot', () => {
+    expect(matchesRule('*.delete*', 'deleteRecord')).toBe(false);
+    expect(matchesRule('*.delete*', 'db.deleteUser')).toBe(true);
+  });
+});
